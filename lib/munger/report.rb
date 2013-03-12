@@ -1,12 +1,12 @@
 module Munger #:nodoc:
-  
+
   class Report
-    
+
     attr_writer :data, :sort, :columns, :subgroup, :subgroup_options, :aggregate
     attr_accessor :column_titles, :column_data_fields, :column_formatters
     attr_reader :process_data, :grouping_level
-    
-    # r = Munger::Report.new ( :data => data, 
+
+    # r = Munger::Report.new ( :data => data,
     #   :columns => [:collect_date, :spot_name, :airings, :display_name],
     #   :sort => [:collect_date, :spot_name]
     #   :subgroup => @group_list,
@@ -19,11 +19,11 @@ module Munger #:nodoc:
       @column_formatters = {}
       set_options(options)
     end
-    
+
     def self.from_data(data)
       Report.new(:data => data)
     end
-    
+
     def set_options(options)
       if d = options[:data]
         if d.is_a? Munger::Data
@@ -37,7 +37,7 @@ module Munger #:nodoc:
       self.subgroup(options[:subgroup]) if options[:subgroup]
       self.aggregate(options[:aggregate]) if options[:aggregate]
     end
-    
+
     def processed?
       if @process_data
         true
@@ -45,39 +45,40 @@ module Munger #:nodoc:
         false
       end
     end
-    
+
     # returns ReportTable
     def process(options = {})
       set_options(options)
-            
-      # sorts and fills NativeReport 
+
+      # sorts and fills NativeReport
+      @only_totals = options[:only_totals]
       @report = translate_native(do_field_sort(@data.data))
-      
+
       do_add_groupings
       do_add_aggregate_rows
-      
+
       self
     end
-    
+
     def sort(values = nil)
       if values
-        @sort = values 
+        @sort = values
         self
       else
         @sort
       end
     end
-    
+
     def subgroup(values = nil, options = {})
       if values
-        @subgroup = values 
+        @subgroup = values
         @subgroup_options = options
         self
       else
         @subgroup
       end
     end
-    
+
     def columns(values = nil)
       if values
         if values.is_a? Hash
@@ -99,28 +100,28 @@ module Munger #:nodoc:
         return column.to_s
       end
     end
-    
+
     def column_data_field(column)
       @column_data_fields[column] || column.to_s
     end
-    
+
     def column_formatter(column)
       @column_formatters[column]
     end
-    
+
     def aggregate(values = nil)
       if values
-        @aggregate = values 
+        @aggregate = values
         self
       else
         @aggregate
       end
     end
-    
+
     def rows
       @process_data.size
     end
-    
+
     def valid?
       (@data.is_a? Munger::Data) && (@data.valid?)
     end
@@ -128,7 +129,7 @@ module Munger #:nodoc:
     # @report.style_cells('highlight') { |cell, row| cell > 32 }
     def style_cells(style, options = {})
       @process_data.each_with_index do |row, index|
-        
+
         # filter columns to look at
         if options[:only]
           cols = Data.array(options[:only])
@@ -141,7 +142,7 @@ module Munger #:nodoc:
         if options[:no_groups] && row[:meta][:group]
           next
         end
-          
+
         cols.each do |col|
           if yield(row[:data][col], row[:data])
             @process_data[index][:meta][:cell_styles] ||= {}
@@ -151,7 +152,7 @@ module Munger #:nodoc:
         end
       end
     end
-    
+
     # @report.style_rows('highlight') { |row| row.age > 32 }
     def style_rows(style, options = {})
       @process_data.each_with_index do |row, index|
@@ -169,26 +170,26 @@ module Munger #:nodoc:
       data = data.select { |r| r[:meta][:group] == group_level } if group_level
       data
     end
-    
+
     def to_s
       pp @process_data
     end
-    
-    private 
-      
+
+    private
+
       def translate_native(array_of_hashes)
         @process_data = []
         array_of_hashes.each do |row|
           @process_data << {:data => Item.ensure(row), :meta => {:data => true}}
         end
       end
-      
+
       def do_add_aggregate_rows
         return false if !@aggregate
         return false if !@aggregate.is_a? Hash
-        
-        totals = {}        
-        
+
+        totals = {}
+
         @process_data.each_with_index do |row, index|
           if row[:meta][:data]
             @aggregate.each do |type, columns|
@@ -201,7 +202,7 @@ module Munger #:nodoc:
                 end
               end
             end
-          elsif level = row[:meta][:group] 
+          elsif level = row[:meta][:group]
             # write the totals and reset level
             @aggregate.each do |type, columns|
               Data.array(columns).each do |column|
@@ -212,7 +213,7 @@ module Munger #:nodoc:
             end
           end
         end
-              
+
         total_row = {:data => {}, :meta => {:group => 0}}
         # write one row at the end with the totals
         @aggregate.each do |type, columns|
@@ -222,9 +223,9 @@ module Munger #:nodoc:
           end
         end
         @process_data << total_row
-        
+
       end
-      
+
       def calculate_aggregate(type, data)
         return 0 if !data
         if type.is_a? Proc
@@ -241,40 +242,40 @@ module Munger #:nodoc:
           end
         end
       end
-      
+
       def do_add_groupings
         return false if !@subgroup
         sub = Data.array(@subgroup)
         @grouping_level = sub.size
-        
+
         current = {}
         new_data = []
-        
+
         first_row = @process_data.first
         sub.reverse.each do |group|
           current[group] = first_row[:data][group]
         end
         prev_row = {:data => {}}
-        
+
         @process_data.each_with_index do |row, index|
           # insert header title rows
           next_row = @process_data[index + 1]
-          
+
           if next_row
-            
+
             # insert header rows
             if @subgroup_options[:with_headers]
               level = 1
               sub.each do |group|
                 if (prev_row[:data][group] != current[group]) && current[group]
-                  group_row = {:data => {}, :meta => {:group_header => level, 
+                  group_row = {:data => {}, :meta => {:group_header => level,
                               :group_name => group, :group_value => row[:data][group]}}
                   new_data << group_row
                 end
                 level += 1
               end
             end
-            
+
             # insert current row
             new_data << row
 
@@ -283,31 +284,33 @@ module Munger #:nodoc:
             level = @grouping_level
             sub.reverse.each do |group|
               if (next_row[:data][group] != current[group]) && current[group]
-                group_row = {:data => {}, :meta => {:group => level, :group_name => group}}
+                data = @only_totals ? {group => row[:data][group]} : {}
+                group_row = {:data => data, :meta => {:group => level, :group_name => group}}
                 new_data << group_row
               end
               current[group] = next_row[:data][group]
               level -= 1
-            end 
-            
+            end
+
             prev_row = row
-            
+
           else  # last row
             level = @grouping_level
-            
+
             # insert header rows
             sub.each do |group|
               if (prev_row[:data][group] != current[group]) && current[group]
-                group_row = {:data => {}, :meta => {:group_header => level, 
+                group_row = {:data => {}, :meta => {:group_header => level,
                             :group_name => group, :group_value => row[:data][group]}}
                 new_data << group_row
               end
             end
-            
+
             new_data << row
-            
+
             sub.reverse.each do |group|
-              group_row = {:data => {}, :meta => {:group => level, :group_name => group}}
+              data = @only_totals ? {group => row[:data][group]} : {}
+              group_row = {:data => data, :meta => {:group => level, :group_name => group}}
               new_data << group_row
               level -= 1
             end
@@ -316,13 +319,13 @@ module Munger #:nodoc:
 
         @process_data = new_data
       end
-      
+
       def do_field_sort(data)
         data.sort do |a, b|
           compare = 0
           a = Item.ensure(a)
           b = Item.ensure(b)
-      
+
           Data.array(@sort).each do |sorting|
             if sorting.is_a?(String) || sorting.is_a?(Symbol)
               compare = a[sorting.to_s] <=> b[sorting.to_s] rescue 0
@@ -343,7 +346,7 @@ module Munger #:nodoc:
           compare
         end
       end
-    
+
   end
-  
+
 end
