@@ -32,5 +32,6 @@ Gem::Specification.new do |s|
                #"spec/spec_render_html.rb",
                #"spec/spec_render_text.rb",
                #"spec/spec_render_csv.rb",
-               #"spec/spec_report.rb"]
+               #"spec/spec_report.rb"
+               ]
 end
